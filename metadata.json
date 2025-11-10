@@ -1,0 +1,8 @@
+{
+  "name": "Trimmy",
+  "description": "This extension automatically trims whitespace (and optional custom strings) from text when it's copied to the clipboard. This is a fork of hedgieinsocks/gnome-extension-trimmer",
+  "uuid": "trimmy@n0tjohnny",
+  "shell-version": ["49"],
+  "settings-schema": "org.gnome.shell.extensions.trimmy",
+  "url": "https://github.com/n0tjohnny/gnome-extension-trimmy"
+}
