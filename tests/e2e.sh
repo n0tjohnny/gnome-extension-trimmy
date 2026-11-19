@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # E2E: load this repo's extension in an isolated headless gnome-shell (own D-Bus,
-# in-memory GSettings, temp XDG dirs) so the user's session is never touched.
-#   positive: repo metadata          -> ACTIVE; every trim mode, the trim string, own-write skip and empty result work
+# in-memory GSettings, temp HOME and XDG dirs) so the user's session is never touched.
+#   positive: repo metadata          -> ACTIVE; trim modes, trim string, re-copy, interleaved copies and empty result work
 #   negative: running major removed  -> OUT OF DATE; every clipboard input left untouched
 # Idempotent: all state lives in one temp root that is removed on exit.
 set -euo pipefail
@@ -39,7 +39,7 @@ import * as Main from "resource:///org/gnome/shell/ui/main.js";
 import {Extension} from "resource:///org/gnome/shell/extensions/extension.js";
 // [trim-mode, trim-string, input]; an input array is set back to back, so get_text replies interleave
 const CASES = [[0, "", "  hi  "], [1, "", "  hi  "], [2, "", "  hi  "], [0, "$", " $ls$ "],
-  [1, "$", "$$ls"], [0, " $ ", "$ ls"], [0, "", "   "], [1, "$", ["$$ls", "$$ls"]]];
+  [1, "$", "$$ls"], [1, "$", "$ls"], [0, " $ ", "$ ls"], [0, "", "   "], [1, "$", ["  old  ", "$$ls"]]];
 export default class Probe extends Extension {
   enable() {
     const cb = St.Clipboard.get_default();
@@ -84,7 +84,7 @@ run_case() { # $1=label $2=metadata.json $3=expected state $4=expected clipboard
   write_probe "$exts"
 
   # The Extensions service the bus activates for gnome-extensions must open the test display, not the user's
-  env -u DISPLAY WAYLAND_DISPLAY=trimmy-e2e \
+  env -u DISPLAY WAYLAND_DISPLAY=trimmy-e2e HOME="$tmp" \
   XDG_DATA_HOME="$tmp/data" XDG_CONFIG_HOME="$tmp/config" XDG_RUNTIME_DIR="$tmp/runtime" \
   GSETTINGS_BACKEND=memory GIO_USE_VFS=local E2E_OUT="$tmp/clip" E2E_UUID="$uuid" \
   dbus-run-session -- bash -c '
@@ -95,10 +95,14 @@ run_case() { # $1=label $2=metadata.json $3=expected state $4=expected clipboard
       sleep 0.2
     done
     gnome-extensions enable "$1" || true   # fails by design in the negative case
+    # enable is async: start the probe only once the extension has left INITIALIZED
+    for _ in $(seq 50); do
+      gnome-extensions info "$1" | sed -n "s/^ *State: //p" >"$0/state"
+      [[ -s $0/state && $(<"$0/state") != INITIALIZED ]] && break
+      sleep 0.2
+    done
     gnome-extensions enable "$2"
     for _ in $(seq 50); do [[ -e $E2E_OUT ]] && break; sleep 0.2; done
-    # enable is async: on a loaded system the state is still INITIALIZED right after it returns
-    gnome-extensions info "$1" | sed -n "s/^ *State: //p" >"$0/state"
     kill %1; wait
   ' "$tmp" "$uuid" "$probe" >"$tmp/shell.log" 2>&1 || true
 
@@ -115,7 +119,7 @@ run_case() { # $1=label $2=metadata.json $3=expected state $4=expected clipboard
 }
 
 rc=0 # run every case even if one fails
-run_case "shell $major, repo metadata" "$repo/metadata.json" ACTIVE 'hi|hi  |  hi|ls|$ls|ls||$ls' || rc=1
+run_case "shell $major, repo metadata" "$repo/metadata.json" ACTIVE 'hi|hi  |  hi|ls|$ls|ls|ls||$ls' || rc=1
 
 neg="$root/negative-metadata.json"
 python3 - "$repo/metadata.json" "$major" >"$neg" <<'EOF'
@@ -124,5 +128,5 @@ m = json.load(open(sys.argv[1]))
 m["shell-version"] = [v for v in m["shell-version"] if v.split(".")[0] != sys.argv[2]]
 print(json.dumps(m))
 EOF
-run_case "negative control, shell $major removed" "$neg" "OUT OF DATE" '  hi  |  hi  |  hi  | $ls$ |$$ls|$ ls|   |$$ls' || rc=1
+run_case "negative control, shell $major removed" "$neg" "OUT OF DATE" '  hi  |  hi  |  hi  | $ls$ |$$ls|$ls|$ ls|   |$$ls' || rc=1
 exit $rc

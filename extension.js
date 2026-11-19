@@ -16,6 +16,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 import {Extension} from "resource:///org/gnome/shell/extensions/extension.js";
+import GLib from "gi://GLib";
 import Meta from "gi://Meta";
 import St from "gi://St";
 import {trim} from "./trim.js";
@@ -27,12 +28,13 @@ export default class TrimmerExtension extends Extension {
     this._selection = null;
     this._trimId = null;
     this._settings = null;
-    this._lastResult = null;
+    this._owner = null;
+    this._ownSource = null;
   }
 
-  _processClipboardContent(text) {
-    // Match the last result by content: get_text replies can interleave, and re-trimming strips the trim string twice
-    if (text === null || text === this._lastResult || !this._settings) {
+  _processClipboardContent(owner, text) {
+    // A newer copy, or this extension's own write, replaced the owner while the reply was in flight
+    if (owner !== this._owner || text === null) {
       return;
     }
 
@@ -45,13 +47,16 @@ export default class TrimmerExtension extends Extension {
       return;
     }
 
-    this._lastResult = result;
-    this._clipboard.set_text(St.ClipboardType.CLIPBOARD, result);
+    this._ownSource = Meta.SelectionSourceMemory.new(
+      "text/plain;charset=utf-8",
+      new GLib.Bytes(new TextEncoder().encode(result)),
+    );
+    this._selection.set_owner(Meta.SelectionType.SELECTION_CLIPBOARD, this._ownSource);
   }
 
-  _getClipboardContent() {
+  _getClipboardContent(owner) {
     this._clipboard.get_text(St.ClipboardType.CLIPBOARD, (_, text) => {
-      this._processClipboardContent(text);
+      this._processClipboardContent(owner, text);
     });
   }
 
@@ -61,9 +66,13 @@ export default class TrimmerExtension extends Extension {
     this._selection = global.display.get_selection();
     this._trimId = this._selection.connect(
       "owner-changed",
-      (_, selectionType) => {
-        if (selectionType === Meta.SelectionType.SELECTION_CLIPBOARD) {
-          this._getClipboardContent();
+      (_, selectionType, owner) => {
+        if (selectionType !== Meta.SelectionType.SELECTION_CLIPBOARD) {
+          return;
+        }
+        this._owner = owner;
+        if (owner && owner !== this._ownSource) {
+          this._getClipboardContent(owner);
         }
       },
     );
@@ -77,6 +86,7 @@ export default class TrimmerExtension extends Extension {
     this._trimId = null;
     this._clipboard = null;
     this._settings = null;
-    this._lastResult = null;
+    this._owner = null;
+    this._ownSource = null;
   }
 }
