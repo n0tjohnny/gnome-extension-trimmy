@@ -6,6 +6,15 @@
 # Idempotent: all state lives in one temp root that is removed on exit.
 set -euo pipefail
 
+# A missing tool or flag would otherwise surface as "FAIL state=?", which reads like an extension bug
+for cmd in gnome-shell gnome-extensions dbus-run-session gdbus glib-compile-schemas python3; do
+  command -v "$cmd" >/dev/null || { echo "e2e: '$cmd' not found" >&2; exit 2; }
+done
+shell_help=$(gnome-shell --help 2>&1)
+for flag in --headless --virtual-monitor --wayland-display; do
+  [[ $shell_help == *"$flag"* ]] || { echo "e2e: gnome-shell does not support $flag" >&2; exit 2; }
+done
+
 repo=$(cd "$(dirname "$0")/.." && pwd)
 uuid=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["uuid"])' "$repo/metadata.json")
 major=$(gnome-shell --version | grep -oE '[0-9]+' | head -1)
