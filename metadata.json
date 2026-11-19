@@ -1,5 +1,5 @@
 {
-  "description": "Cleans up text right after you copy it: removes spaces, tabs and line breaks from the ends, and optionally a piece of text you choose, such as a leading \"$\".\n\nChoose both ends, start only or end only in the preferences, and use the Try it box to preview the result. Fork of hedgieinsocks/gnome-extension-trimmer.",
+  "description": "Removes extra spaces and line breaks from text when you copy it. It can also remove a symbol you choose, like the $ in front of a terminal command.\n\nPick which ends to clean in the settings, and preview the result there. Based on hedgieinsocks/gnome-extension-trimmer.",
   "name": "Trimmy",
   "settings-schema": "org.gnome.shell.extensions.trimmy",
   "shell-version": [

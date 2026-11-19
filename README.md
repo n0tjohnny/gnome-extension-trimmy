@@ -1,58 +1,30 @@
 # Trimmy
 
-Trimmy is a GNOME Shell extension that cleans up text right after you copy it. It removes spaces, tabs and line breaks from the ends of the copied text, and can also remove a piece of text you choose, such as the `$` prompt in front of a shell command.
+Trimmy removes extra spaces and line breaks from text when you copy it. It can also remove a symbol you choose, like the `$` in front of a terminal command.
 
-It works with GNOME 49, 50 and 51. Trimmy is a fork of [Trimmer](https://github.com/hedgieinsocks/gnome-extension-trimmer) by hedgieinsocks.
-
-## How to use it
-
-Turn Trimmy on in the Extensions app, then copy text as usual with Ctrl+C or a Copy menu item. When you paste, the text is already cleaned. Text you only highlight (the middle-click selection) is not changed.
-
-To change how Trimmy cleans text, open its preferences from the Extensions app, or run:
-
-```
-gnome-extensions prefs trimmy@n0tjohnny
-```
-
-Changes apply right away. The Try it section at the bottom of the preferences window shows what Trimmy would put on the clipboard for any sample you type or paste.
-
-## Options
-
-Trim mode chooses which ends of the copied text get cleaned.
-
-| Trim mode | You copy | You paste |
-|---|---|---|
-| Both ends (default) | `"  hello  "` | `"hello"` |
-| Start only | `"  hello  "` | `"hello  "` |
-| End only | `"  hello  "` | `"  hello"` |
-
-Trim string is optional text that Trimmy also removes from each cleaned end. Trimmy first removes the whitespace, then removes the trim string once, then removes any whitespace that is left. Spaces you type around the trim string itself are ignored.
-
-| Trim string | Trim mode | You copy | You paste |
-|---|---|---|---|
-| `$` | Both ends | `"  $ ls  "` | `"ls"` |
-| `$` | Start only | `"$$ls"` | `"$ls"` (removed once) |
-| `$` | Both ends | `"$"` | `""` (clipboard is cleared) |
-
-If cleaning leaves nothing, for example when you copy only spaces, Trimmy clears the clipboard.
+Works with GNOME 49, 50 and 51. Based on [Trimmer](https://github.com/hedgieinsocks/gnome-extension-trimmer).
 
 ## Install
 
-From [extensions.gnome.org](https://extensions.gnome.org), or from this repository:
+Get it from [extensions.gnome.org](https://extensions.gnome.org), then turn it on in the Extensions app.
 
-```
-gnome-extensions pack --extra-source=trim.js --extra-source=icon.png --extra-source=README.md
-gnome-extensions install --force trimmy@n0tjohnny.shell-extension.zip
-```
+## Use
 
-Log out and back in, then turn Trimmy on in the Extensions app.
+Copy text with Ctrl+C. When you paste, the extra spaces are gone.
 
-## Tests
+| You copy | You paste |
+|---|---|
+| `"  hello  "` | `"hello"` |
+| `"  $ ls  "` with `$` set as the trim string | `"ls"` |
 
-`gjs -m tests/trim.test.js` checks the trim rule in `trim.js`.
+## Settings
 
-`tests/e2e.sh` starts a separate headless GNOME Shell with its own settings, loads Trimmy from this repository and copies sample text through the real clipboard. It also checks that a GNOME version missing from `metadata.json` keeps Trimmy from loading. Your own session is not touched.
+Open them from the Extensions app.
 
-GitHub Actions (`.github/workflows/ci.yml`) runs the unit test, validates the schema and `metadata.json`, and builds the extension zip on every push and pull request. Pushing a tag such as `v5` also publishes a GitHub release with that zip attached. The E2E test only runs locally, because it needs GNOME Shell.
+- Trim mode: clean both ends, only the start, or only the end.
+- Trim string: extra text to remove from the ends, like `$`. Leave it empty to remove only spaces.
+- Try it: type a sample and see the result before you copy anything.
 
-The words used for Trimmy's concepts are defined in [GLOSSARY.md](GLOSSARY.md).
+## Development
+
+Run the tests with `gjs -m tests/trim.test.js` and `tests/e2e.sh` (needs GNOME Shell).
