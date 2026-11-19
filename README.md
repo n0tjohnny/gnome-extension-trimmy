@@ -12,7 +12,7 @@ To install a zip from [GitHub releases](https://github.com/n0tjohnny/gnome-exten
 
 ## Use
 
-Copy text with Ctrl+C. When you paste, the extra spaces are gone. When Trimmy changes a copy, only the plain text is kept, so formatting like bold or links is dropped.
+Copy text with Ctrl+C. When you paste, the extra spaces are gone. When Trimmy changes a copy, only the plain text is kept, so formatting like bold or links is dropped. Copied files are never changed.
 
 | You copy | You paste |
 |---|---|
