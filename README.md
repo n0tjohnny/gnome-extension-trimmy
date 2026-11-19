@@ -8,6 +8,8 @@ Works with GNOME 49+ versions. Based on [Trimmer](https://github.com/hedgieinsoc
 
 Get it from [extensions.gnome.org](https://extensions.gnome.org/extension/8792/trimmy), then turn it on in the Extensions app.
 
+To install a zip from [GitHub releases](https://github.com/n0tjohnny/gnome-extension-trimmy/releases) instead, run `gnome-extensions install --force trimmy@n0tjohnny.shell-extension.zip`, log out and back in, then turn it on. Don't unzip it by hand: the installer also prepares the settings.
+
 ## Use
 
 Copy text with Ctrl+C. When you paste, the extra spaces are gone.
