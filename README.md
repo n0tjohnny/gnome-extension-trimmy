@@ -1,6 +1,6 @@
 # Trimmy
 
-> **Note**: This is a fork of the original [Trimmer extension](https://github.com/hedgieinsocks/gnome-extension-trimmer) with GNOME 49 and 50 compatibility.
+> **Note**: This is a fork of the original [Trimmer extension](https://github.com/hedgieinsocks/gnome-extension-trimmer) with GNOME 49–51 compatibility.
 
 ## Automatically trim the text in your clipboard
 

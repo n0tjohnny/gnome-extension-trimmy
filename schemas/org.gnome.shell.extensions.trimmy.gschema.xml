@@ -2,6 +2,7 @@
 <schemalist>
   <schema id="org.gnome.shell.extensions.trimmy" path="/org/gnome/shell/extensions/trimmy/">
     <key name="trim-mode" type="i">
+      <range min="0" max="2"/>
       <default>0</default>
     </key>
     <key name="trim-string" type="s">

@@ -22,7 +22,6 @@ export default class TrimmerPreferences extends ExtensionPreferences {
     const dropdown = new Gtk.DropDown({
       valign: Gtk.Align.CENTER,
       model: Gtk.StringList.new(trimModes),
-      selected: settings.get_int("trim-mode"),
     });
 
     settings.bind(
@@ -43,7 +42,6 @@ export default class TrimmerPreferences extends ExtensionPreferences {
     group.add(rowString);
 
     const entry = new Gtk.Entry({
-      text: settings.get_string("trim-string"),
       valign: Gtk.Align.CENTER,
       hexpand: true,
     });

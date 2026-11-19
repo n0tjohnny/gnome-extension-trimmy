@@ -17,7 +17,6 @@
    */
 import {Extension} from "resource:///org/gnome/shell/extensions/extension.js";
 import Meta from "gi://Meta";
-import Shell from "gi://Shell";
 import St from "gi://St";
 
 export default class TrimmerExtension extends Extension {
@@ -30,7 +29,8 @@ export default class TrimmerExtension extends Extension {
   }
 
   _processClipboardContent(text) {
-    if (!text) {
+    // get_text is async: the reply can arrive after disable()
+    if (!text || !this._settings) {
       return;
     }
 
