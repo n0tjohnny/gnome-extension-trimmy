@@ -30,7 +30,7 @@ jobs:
       - name: Build extension zip
         run: |
           uuid=$(python3 -c 'import json; print(json.load(open("metadata.json"))["uuid"])')
-          zip -r "$uuid.shell-extension.zip" metadata.json *.js schemas/*.gschema.xml icon.png README.md
+          zip -r "$uuid.shell-extension.zip" metadata.json *.js schemas/*.gschema.xml icon.png README.md LICENSE
           unzip -l "$uuid.shell-extension.zip"
 
       - uses: actions/upload-artifact@v7
