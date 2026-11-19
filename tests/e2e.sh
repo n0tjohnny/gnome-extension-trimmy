@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # E2E: load this repo's extension in an isolated headless gnome-shell (own D-Bus,
 # in-memory GSettings, temp XDG dirs) so the user's session is never touched.
-#   positive: repo metadata          -> ACTIVE; each trim mode and the custom trim string work
+#   positive: repo metadata          -> ACTIVE; every trim mode, the trim string, own-write skip and empty result work
 #   negative: running major removed  -> OUT OF DATE; every clipboard input left untouched
 # Idempotent: all state lives in one temp root that is removed on exit.
 set -euo pipefail
@@ -29,7 +29,8 @@ import St from "gi://St";
 import * as Main from "resource:///org/gnome/shell/ui/main.js";
 import {Extension} from "resource:///org/gnome/shell/extensions/extension.js";
 // [trim-mode, trim-string, clipboard input]; results are joined with "|"
-const CASES = [[0, "", "  hi  "], [1, "", "  hi  "], [2, "", "  hi  "], [0, "$", " $ls$ "]];
+const CASES = [[0, "", "  hi  "], [1, "", "  hi  "], [2, "", "  hi  "], [0, "$", " $ls$ "],
+  [1, "$", "$$ls"], [0, " $ ", "$ ls"], [0, "", "   "]];
 export default class Probe extends Extension {
   enable() {
     const cb = St.Clipboard.get_default();
@@ -68,7 +69,7 @@ run_case() { # $1=label $2=metadata.json $3=expected state $4=expected clipboard
   local tmp; tmp=$(mktemp -d -p "$root")
   local exts="$tmp/data/gnome-shell/extensions"
   mkdir -p "$exts/$uuid" "$tmp/config" "$tmp/runtime"; chmod 700 "$tmp/runtime"
-  cp -r "$repo/extension.js" "$repo/prefs.js" "$repo/schemas" "$exts/$uuid/"
+  cp -r "$repo"/*.js "$repo/schemas" "$exts/$uuid/"
   cp "$2" "$exts/$uuid/metadata.json"
   glib-compile-schemas "$exts/$uuid/schemas" # what the Shell's installer does on install
   write_probe "$exts"
@@ -102,7 +103,7 @@ run_case() { # $1=label $2=metadata.json $3=expected state $4=expected clipboard
 }
 
 rc=0 # run every case even if one fails
-run_case "shell $major, repo metadata" "$repo/metadata.json" ACTIVE "hi|hi  |  hi|ls" || rc=1
+run_case "shell $major, repo metadata" "$repo/metadata.json" ACTIVE 'hi|hi  |  hi|ls|$ls|ls|' || rc=1
 
 neg="$root/negative-metadata.json"
 python3 - "$repo/metadata.json" "$major" >"$neg" <<'EOF'
@@ -111,5 +112,5 @@ m = json.load(open(sys.argv[1]))
 m["shell-version"] = [v for v in m["shell-version"] if v.split(".")[0] != sys.argv[2]]
 print(json.dumps(m))
 EOF
-run_case "negative control, shell $major removed" "$neg" "OUT OF DATE" '  hi  |  hi  |  hi  | $ls$ ' || rc=1
+run_case "negative control, shell $major removed" "$neg" "OUT OF DATE" '  hi  |  hi  |  hi  | $ls$ |$$ls|$ ls|   ' || rc=1
 exit $rc

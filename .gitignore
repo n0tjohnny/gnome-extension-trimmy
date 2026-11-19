@@ -1,2 +1,4 @@
 .claude/settings.local.json
 .serena/
+*.shell-extension.zip
+schemas/gschemas.compiled

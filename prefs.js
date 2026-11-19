@@ -2,55 +2,74 @@ import {ExtensionPreferences} from "resource:///org/gnome/Shell/Extensions/js/ex
 import Adw from "gi://Adw";
 import Gio from "gi://Gio";
 import Gtk from "gi://Gtk";
+import {trim} from "./trim.js";
 
-const trimModes = ["both", "left", "right"];
+// Order matches the trim-mode setting: 0, 1, 2
+const trimModes = ["Both ends", "Start only", "End only"];
 
 export default class TrimmerPreferences extends ExtensionPreferences {
   fillPreferencesWindow(window) {
-    // Remove the custom schema ID - use default
     const settings = this.getSettings();
     const page = new Adw.PreferencesPage();
-    const group = new Adw.PreferencesGroup();
-    page.add(group);
 
-    // Trim Mode
-    const rowMode = new Adw.ActionRow({
-      title: "Trim Mode",
+    const options = new Adw.PreferencesGroup({
+      title: "Trimming",
+      description:
+        "Every time you copy text (Ctrl+C or Copy), Trimmy removes spaces, tabs " +
+        "and line breaks from its ends. Text you only highlight is not changed. " +
+        "Changes apply right away.",
     });
-    group.add(rowMode);
+    page.add(options);
 
-    const dropdown = new Gtk.DropDown({
-      valign: Gtk.Align.CENTER,
+    const modeRow = new Adw.ComboRow({
+      title: "Trim mode",
+      subtitle: "Which ends of the copied text to clean",
       model: Gtk.StringList.new(trimModes),
     });
+    settings.bind("trim-mode", modeRow, "selected", Gio.SettingsBindFlags.DEFAULT);
+    options.add(modeRow);
 
-    settings.bind(
-      "trim-mode",
-      dropdown,
-      "selected",
-      Gio.SettingsBindFlags.DEFAULT,
-    );
-
-    rowMode.add_suffix(dropdown);
-    rowMode.activatable_widget = dropdown;
-
-    // Trim String
-    const rowString = new Adw.ActionRow({
-      title: "Trim String",
-      subtitle: "Additionally strip a string",
+    const extra = new Adw.PreferencesGroup({
+      title: "Trim string",
+      description:
+        "Optional text removed once from each cleaned end, after the whitespace. " +
+        "With \"$\", copying \"  $ ls  \" gives \"ls\". " +
+        "If nothing is left, the clipboard becomes empty.",
     });
-    group.add(rowString);
+    page.add(extra);
 
-    const entry = new Gtk.Entry({
-      valign: Gtk.Align.CENTER,
-      hexpand: true,
+    const stringRow = new Adw.EntryRow({title: "Text to remove"});
+    settings.bind("trim-string", stringRow, "text", Gio.SettingsBindFlags.DEFAULT);
+    extra.add(stringRow);
+
+    const tryIt = new Adw.PreferencesGroup({
+      title: "Try it",
+      description: "Type or paste a sample to see what Trimmy puts on the clipboard with the options above.",
     });
+    page.add(tryIt);
 
-    settings.bind("trim-string", entry, "text", Gio.SettingsBindFlags.DEFAULT);
+    const sampleRow = new Adw.EntryRow({title: "Sample", text: "  $ ls  "});
+    tryIt.add(sampleRow);
 
-    rowString.add_suffix(entry);
-    rowString.activatable_widget = entry;
+    // use_markup off: the sample is user text and may contain < or &
+    const resultRow = new Adw.ActionRow({title: "Result", use_markup: false});
+    tryIt.add(resultRow);
+
+    const updateResult = () => {
+      const result = trim(
+        sampleRow.text,
+        settings.get_int("trim-mode"),
+        settings.get_string("trim-string"),
+      );
+      resultRow.subtitle = result ? `"${result}"` : "(empty: the clipboard is cleared)";
+    };
+    sampleRow.connect("changed", updateResult);
+    const settingsId = settings.connect("changed", updateResult);
+    window.connect("close-request", () => settings.disconnect(settingsId));
+    updateResult();
 
     window.add(page);
+    // tall enough that the Try it result shows without scrolling
+    window.set_default_size(560, 780);
   }
 }

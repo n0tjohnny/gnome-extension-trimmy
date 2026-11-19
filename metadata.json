@@ -1,5 +1,5 @@
 {
-  "description": "This extension automatically trims whitespace (and optional custom strings) from text when it's copied to the clipboard. This is a fork of hedgieinsocks/gnome-extension-trimmer",
+  "description": "Cleans up text right after you copy it: removes spaces, tabs and line breaks from the ends, and optionally a piece of text you choose, such as a leading \"$\".\n\nChoose both ends, start only or end only in the preferences, and use the Try it box to preview the result. Fork of hedgieinsocks/gnome-extension-trimmer.",
   "name": "Trimmy",
   "settings-schema": "org.gnome.shell.extensions.trimmy",
   "shell-version": [

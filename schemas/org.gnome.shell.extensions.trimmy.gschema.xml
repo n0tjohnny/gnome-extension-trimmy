@@ -4,9 +4,13 @@
     <key name="trim-mode" type="i">
       <range min="0" max="2"/>
       <default>0</default>
+      <summary>Trim mode</summary>
+      <description>Which ends of copied text to clean: 0 both ends, 1 start only, 2 end only.</description>
     </key>
     <key name="trim-string" type="s">
       <default>""</default>
+      <summary>Trim string</summary>
+      <description>Optional text removed once from each cleaned end, after whitespace. Spaces around it are ignored. Empty means only whitespace is removed.</description>
     </key>
   </schema>
 </schemalist>

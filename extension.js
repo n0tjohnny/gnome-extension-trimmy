@@ -18,6 +18,7 @@
 import {Extension} from "resource:///org/gnome/shell/extensions/extension.js";
 import Meta from "gi://Meta";
 import St from "gi://St";
+import {trim} from "./trim.js";
 
 export default class TrimmerExtension extends Extension {
   constructor(metadata) {
@@ -26,50 +27,29 @@ export default class TrimmerExtension extends Extension {
     this._selection = null;
     this._trimId = null;
     this._settings = null;
+    this._ownWrite = null;
   }
 
   _processClipboardContent(text) {
+    // Our own set_text fires owner-changed too; trimming it again would strip the trim string twice
+    const isOwnWrite = text === this._ownWrite;
+    this._ownWrite = null;
     // get_text is async: the reply can arrive after disable()
-    if (!text || !this._settings) {
+    if (isOwnWrite || text === null || !this._settings) {
       return;
     }
 
-    const trimMode = this._settings.get_int("trim-mode");
-    const trimString = this._settings.get_string("trim-string");
-    let trimText;
-
-    if (trimMode === 0) {
-      trimText = text.trim();
-      if (trimString) {
-        // Fix regex to handle the custom string properly
-        trimText = trimText.replace(new RegExp(`^${this._escapeRegex(trimString)}|${this._escapeRegex(trimString)}$`, 'g'), '');
-      }
-    } else if (trimMode === 1) {
-      trimText = text.trimStart();
-      if (trimString) {
-        trimText = trimText.replace(new RegExp(`^${this._escapeRegex(trimString)}`, 'g'), '');
-      }
-    } else if (trimMode === 2) {
-      trimText = text.trimEnd();
-      if (trimString) {
-        trimText = trimText.replace(new RegExp(`${this._escapeRegex(trimString)}$`, 'g'), '');
-      }
-    }
-
-    if (!trimText) {
+    const result = trim(
+      text,
+      this._settings.get_int("trim-mode"),
+      this._settings.get_string("trim-string"),
+    );
+    if (result === text) {
       return;
     }
 
-    if (trimText === text) {
-      return;
-    }
-
-    this._clipboard.set_text(St.ClipboardType.CLIPBOARD, trimText);
-  }
-
-  // Helper function to escape special regex characters
-  _escapeRegex(string) {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    this._ownWrite = result;
+    this._clipboard.set_text(St.ClipboardType.CLIPBOARD, result);
   }
 
   _getClipboardContent() {
@@ -79,13 +59,9 @@ export default class TrimmerExtension extends Extension {
   }
 
   enable() {
-    // Use default settings without custom ID
     this._settings = this.getSettings();
     this._clipboard = St.Clipboard.get_default();
-    
-    const display = global.display;
-    this._selection = display.get_selection();
-    
+    this._selection = global.display.get_selection();
     this._trimId = this._selection.connect(
       "owner-changed",
       (_, selectionType) => {
@@ -104,5 +80,6 @@ export default class TrimmerExtension extends Extension {
     this._trimId = null;
     this._clipboard = null;
     this._settings = null;
+    this._ownWrite = null;
   }
 }
