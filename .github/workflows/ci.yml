@@ -25,8 +25,7 @@ jobs:
           glib-compile-schemas --strict --dry-run schemas
           python3 -c 'import json; m = json.load(open("metadata.json")); assert m["uuid"] and m["shell-version"]'
 
-      # Same layout as `gnome-extensions pack`: schema XML only, never gschemas.compiled
-      # (since GNOME 44 the installer compiles it and packages must not ship it).
+      # Schema XML only: since GNOME 44 the installer compiles it, and packages must not ship gschemas.compiled
       # tests/e2e.sh is not run here: it needs a GNOME Shell the runner does not have.
       - name: Build extension zip
         run: |

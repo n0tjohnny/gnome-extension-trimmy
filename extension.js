@@ -27,15 +27,12 @@ export default class TrimmerExtension extends Extension {
     this._selection = null;
     this._trimId = null;
     this._settings = null;
-    this._ownWrite = null;
+    this._lastResult = null;
   }
 
   _processClipboardContent(text) {
-    // Our own set_text fires owner-changed too; trimming it again would strip the trim string twice
-    const isOwnWrite = text === this._ownWrite;
-    this._ownWrite = null;
-    // get_text is async: the reply can arrive after disable()
-    if (isOwnWrite || text === null || !this._settings) {
+    // Match the last result by content: get_text replies can interleave, and re-trimming strips the trim string twice
+    if (text === null || text === this._lastResult || !this._settings) {
       return;
     }
 
@@ -48,7 +45,7 @@ export default class TrimmerExtension extends Extension {
       return;
     }
 
-    this._ownWrite = result;
+    this._lastResult = result;
     this._clipboard.set_text(St.ClipboardType.CLIPBOARD, result);
   }
 
@@ -80,6 +77,6 @@ export default class TrimmerExtension extends Extension {
     this._trimId = null;
     this._clipboard = null;
     this._settings = null;
-    this._ownWrite = null;
+    this._lastResult = null;
   }
 }
