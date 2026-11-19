@@ -101,7 +101,8 @@ run_case() { # $1=label $2=metadata.json $3=expected state $4=expected clipboard
   fi
 }
 
-run_case "shell $major, repo metadata" "$repo/metadata.json" ACTIVE "hi|hi  |  hi|ls"
+rc=0 # run every case even if one fails
+run_case "shell $major, repo metadata" "$repo/metadata.json" ACTIVE "hi|hi  |  hi|ls" || rc=1
 
 neg="$root/negative-metadata.json"
 python3 - "$repo/metadata.json" "$major" >"$neg" <<'EOF'
@@ -110,4 +111,5 @@ m = json.load(open(sys.argv[1]))
 m["shell-version"] = [v for v in m["shell-version"] if v.split(".")[0] != sys.argv[2]]
 print(json.dumps(m))
 EOF
-run_case "negative control, shell $major removed" "$neg" "OUT OF DATE" '  hi  |  hi  |  hi  | $ls$ '
+run_case "negative control, shell $major removed" "$neg" "OUT OF DATE" '  hi  |  hi  |  hi  | $ls$ ' || rc=1
+exit $rc
