@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # only used by the release step on tags
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y gjs libglib2.0-bin zip
+
+      - name: Unit test
+        run: gjs -m tests/trim.test.js
+
+      - name: Validate schema and metadata
+        run: |
+          glib-compile-schemas --strict --dry-run schemas
+          python3 -c 'import json; m = json.load(open("metadata.json")); assert m["uuid"] and m["shell-version"]'
+
+      # Same files as `gnome-extensions pack --extra-source=...` in the README.
+      # tests/e2e.sh is not run here: it needs a GNOME Shell the runner does not have.
+      - name: Build extension zip
+        run: |
+          uuid=$(python3 -c 'import json; print(json.load(open("metadata.json"))["uuid"])')
+          zip -r "$uuid.shell-extension.zip" metadata.json *.js schemas/*.gschema.xml icon.png README.md
+          unzip -l "$uuid.shell-extension.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: extension
+          path: "*.shell-extension.zip"
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: gh release create "$GITHUB_REF_NAME" *.shell-extension.zip --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}

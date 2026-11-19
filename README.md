@@ -53,4 +53,6 @@ Log out and back in, then turn Trimmy on in the Extensions app.
 
 `tests/e2e.sh` starts a separate headless GNOME Shell with its own settings, loads Trimmy from this repository and copies sample text through the real clipboard. It also checks that a GNOME version missing from `metadata.json` keeps Trimmy from loading. Your own session is not touched.
 
+GitHub Actions (`.github/workflows/ci.yml`) runs the unit test, validates the schema and `metadata.json`, and builds the extension zip on every push and pull request. Pushing a tag such as `v5` also publishes a GitHub release with that zip attached. The E2E test only runs locally, because it needs GNOME Shell.
+
 The words used for Trimmy's concepts are defined in [GLOSSARY.md](GLOSSARY.md).
