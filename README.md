@@ -6,7 +6,7 @@ Works with GNOME 49+ versions. Based on [Trimmer](https://github.com/hedgieinsoc
 
 ## Install
 
-Get it from [extensions.gnome.org]([https://extensions.gnome.org](https://extensions.gnome.org/extension/8792/trimmy/)), then turn it on in the Extensions app.
+Get it from [extensions.gnome.org](https://extensions.gnome.org](https://extensions.gnome.org/extension/8792/trimmy), then turn it on in the Extensions app.
 
 ## Use
 
