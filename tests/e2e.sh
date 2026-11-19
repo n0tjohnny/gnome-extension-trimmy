@@ -83,10 +83,13 @@ run_case() { # $1=label $2=metadata.json $3=expected state $4=expected clipboard
   glib-compile-schemas "$exts/$uuid/schemas" # what the Shell's installer does on install
   write_probe "$exts"
 
+  # Helpers the bus activates (the Extensions app behind gnome-extensions) must open the
+  # test shell's display, never the user's session display or none at all.
+  env -u DISPLAY WAYLAND_DISPLAY=trimmy-e2e \
   XDG_DATA_HOME="$tmp/data" XDG_CONFIG_HOME="$tmp/config" XDG_RUNTIME_DIR="$tmp/runtime" \
   GSETTINGS_BACKEND=memory GIO_USE_VFS=local E2E_OUT="$tmp/clip" E2E_UUID="$uuid" \
   dbus-run-session -- bash -c '
-    gnome-shell --headless --virtual-monitor 800x600 --wayland-display=trimmy-e2e &
+    gnome-shell --headless --virtual-monitor 800x600 --wayland-display="$WAYLAND_DISPLAY" &
     for _ in $(seq 100); do
       gdbus call --session -d org.gnome.Shell -o /org/gnome/Shell \
         -m org.freedesktop.DBus.Properties.Get org.gnome.Shell.Extensions ShellVersion &>/dev/null && break
