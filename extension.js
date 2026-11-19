@@ -71,7 +71,8 @@ export default class TrimmerExtension extends Extension {
           return;
         }
         this._owner = owner;
-        if (owner && owner !== this._ownSource) {
+        // Copied files also offer their paths as text; replacing them with text would break pasting the files
+        if (owner && owner !== this._ownSource && !owner.get_mimetypes().includes("text/uri-list")) {
           this._getClipboardContent(owner);
         }
       },

@@ -20,7 +20,7 @@ uuid=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["uuid"])' 
 major=$(gnome-shell --version | grep -oE '[0-9]+' | head -1)
 probe=e2e-probe@trimmy.test
 root=$(mktemp -d)
-cleanup() { # the session's xdg-document-portal FUSE-mounts $XDG_RUNTIME_DIR/doc and may outlive the bus
+cleanup() { # xdg-document-portal FUSE-mounts $XDG_RUNTIME_DIR/doc via fusermount3, and the mount may outlive the bus
   for m in "$root"/*/runtime/doc; do fusermount3 -uz "$m" 2>/dev/null || true; done
   rm -rf "$root"
 }
@@ -37,32 +37,41 @@ import GLib from "gi://GLib";
 import St from "gi://St";
 import * as Main from "resource:///org/gnome/shell/ui/main.js";
 import {Extension} from "resource:///org/gnome/shell/extensions/extension.js";
-// [trim-mode, trim-string, input]; an input array is set back to back, so get_text replies interleave
-const CASES = [[0, "", "  hi  "], [1, "", "  hi  "], [2, "", "  hi  "], [0, "$", " $ls$ "],
-  [1, "$", "$$ls"], [1, "$", "$ls"], [0, " $ ", "$ ls"], [0, "", "   "], [1, "$", ["  old  ", "$$ls"]]];
+
+// [trim-mode, trim-string, input, result]; an input array is set back to back, so get_text replies
+// interleave; the 1 MiB first copy makes its reply arrive last, after the newer one
+const CASES = [[0, "", "  hi  ", "hi"], [1, "", "  hi  ", "hi  "], [2, "", "  hi  ", "  hi"],
+  [0, "$", " $ls$ ", "ls"], [1, "$", "$$ls", "$ls"], [1, "$", "$ls", "ls"], [0, " $ ", "$ ls", "ls"],
+  [0, "", "   ", ""], [1, "$", [" ".repeat(1 << 20) + "old  ", "$$ls"], "$ls"]];
+
 export default class Probe extends Extension {
   enable() {
     const cb = St.Clipboard.get_default();
     // null when trimmy is not running (negative control): settings stay untouched
     const settings = Main.extensionManager.lookup(GLib.getenv("E2E_UUID"))?.stateObj?.getSettings();
-    const results = [];
+    const later = (ms, fn) => {
+      this._id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => { this._id = 0; fn(); return GLib.SOURCE_REMOVE; });
+    };
+    // Wait for the wanted text (5 s cap), then stay quiet 300 ms so a second, unwanted change still shows
+    const settle = (want, done, deadline = GLib.get_monotonic_time() + 5e6) =>
+      cb.get_text(St.ClipboardType.CLIPBOARD, (_, text) => {
+        if ((text ?? "") !== want && GLib.get_monotonic_time() < deadline) later(100, () => settle(want, done, deadline));
+        else later(300, () => cb.get_text(St.ClipboardType.CLIPBOARD, (_, last) => done(last ?? "")));
+      });
+    const results = [], wants = [];
     const next = () => {
       if (results.length === CASES.length) {
+        GLib.file_set_contents(`${GLib.getenv("E2E_OUT")}.want`, wants.join("|"));
         GLib.file_set_contents(GLib.getenv("E2E_OUT"), results.join("|"));
         return;
       }
-      const [mode, str, input] = CASES[results.length];
+      const [mode, str, input, result] = CASES[results.length];
+      const inputs = [].concat(input);
+      wants.push(GLib.getenv("E2E_EXPECT") === "trimmed" ? result : inputs.at(-1));
       settings?.set_int("trim-mode", mode);
       settings?.set_string("trim-string", str);
-      for (const text of [].concat(input)) cb.set_text(St.ClipboardType.CLIPBOARD, text);
-      this._id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
-        cb.get_text(St.ClipboardType.CLIPBOARD, (_, text) => {
-          results.push(text ?? "");
-          next();
-        });
-        this._id = 0;
-        return GLib.SOURCE_REMOVE;
-      });
+      for (const text of inputs) cb.set_text(St.ClipboardType.CLIPBOARD, text);
+      settle(wants.at(-1), text => { results.push(text); next(); });
     };
     next();
   }
@@ -74,7 +83,7 @@ export default class Probe extends Extension {
 EOF
 }
 
-run_case() { # $1=label $2=metadata.json $3=expected state $4=expected clipboard
+run_case() { # $1=label $2=metadata.json $3=expected state $4=trimmed|untouched
   local tmp; tmp=$(mktemp -d -p "$root")
   local exts="$tmp/data/gnome-shell/extensions"
   mkdir -p "$exts/$uuid" "$tmp/config" "$tmp/runtime"; chmod 700 "$tmp/runtime"
@@ -86,7 +95,7 @@ run_case() { # $1=label $2=metadata.json $3=expected state $4=expected clipboard
   # The Extensions service the bus activates for gnome-extensions must open the test display, not the user's
   env -u DISPLAY WAYLAND_DISPLAY=trimmy-e2e HOME="$tmp" \
   XDG_DATA_HOME="$tmp/data" XDG_CONFIG_HOME="$tmp/config" XDG_RUNTIME_DIR="$tmp/runtime" \
-  GSETTINGS_BACKEND=memory GIO_USE_VFS=local E2E_OUT="$tmp/clip" E2E_UUID="$uuid" \
+  GSETTINGS_BACKEND=memory GIO_USE_VFS=local E2E_OUT="$tmp/clip" E2E_UUID="$uuid" E2E_EXPECT="$4" \
   dbus-run-session -- bash -c '
     gnome-shell --headless --virtual-monitor 800x600 --wayland-display="$WAYLAND_DISPLAY" &
     for _ in $(seq 100); do
@@ -102,24 +111,25 @@ run_case() { # $1=label $2=metadata.json $3=expected state $4=expected clipboard
       sleep 0.2
     done
     gnome-extensions enable "$2"
-    for _ in $(seq 50); do [[ -e $E2E_OUT ]] && break; sleep 0.2; done
+    for _ in $(seq 300); do [[ -e $E2E_OUT ]] && break; sleep 0.2; done
     kill %1; wait
   ' "$tmp" "$uuid" "$probe" >"$tmp/shell.log" 2>&1 || true
 
-  local state clip
+  local state clip want
   state=$(cat "$tmp/state" 2>/dev/null || echo "?")
   clip=$(cat "$tmp/clip" 2>/dev/null || echo "<none>")
-  if [[ $state == "$3" && $clip == "$4" ]]; then
+  want=$(cat "$tmp/clip.want" 2>/dev/null || echo "<none>")
+  if [[ $state == "$3" && $clip == "$want" && $want != "<none>" ]]; then
     echo "PASS $1: state=$state clipboard='$clip'"
   else
-    echo "FAIL $1: state=$state (want $3) clipboard='$clip' (want '$4')"
+    echo "FAIL $1: state=$state (want $3) clipboard='$clip' (want '$want')"
     grep -iE 'trimmy|probe|error' "$tmp/shell.log" | tail -20
     return 1
   fi
 }
 
 rc=0 # run every case even if one fails
-run_case "shell $major, repo metadata" "$repo/metadata.json" ACTIVE 'hi|hi  |  hi|ls|$ls|ls|ls||$ls' || rc=1
+run_case "shell $major, repo metadata" "$repo/metadata.json" ACTIVE trimmed || rc=1
 
 neg="$root/negative-metadata.json"
 python3 - "$repo/metadata.json" "$major" >"$neg" <<'EOF'
@@ -128,5 +138,5 @@ m = json.load(open(sys.argv[1]))
 m["shell-version"] = [v for v in m["shell-version"] if v.split(".")[0] != sys.argv[2]]
 print(json.dumps(m))
 EOF
-run_case "negative control, shell $major removed" "$neg" "OUT OF DATE" '  hi  |  hi  |  hi  | $ls$ |$$ls|$ls|$ ls|   |$$ls' || rc=1
+run_case "negative control, shell $major removed" "$neg" "OUT OF DATE" untouched || rc=1
 exit $rc
