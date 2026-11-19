@@ -2,7 +2,7 @@
 
 Trimmy removes extra spaces and line breaks from text when you copy it. It can also remove a symbol you choose, like the `$` in front of a terminal command.
 
-Works with GNOME 49, 50 and 51. Based on [Trimmer](https://github.com/hedgieinsocks/gnome-extension-trimmer).
+Works with GNOME 49+ versions. Based on [Trimmer](https://github.com/hedgieinsocks/gnome-extension-trimmer).
 
 ## Install
 
