@@ -95,9 +95,10 @@ run_case() { # $1=label $2=metadata.json $3=expected state $4=expected clipboard
       sleep 0.2
     done
     gnome-extensions enable "$1" || true   # fails by design in the negative case
-    gnome-extensions info "$1" | sed -n "s/^ *State: //p" >"$0/state"
     gnome-extensions enable "$2"
     for _ in $(seq 50); do [[ -e $E2E_OUT ]] && break; sleep 0.2; done
+    # enable is async: on a loaded system the state is still INITIALIZED right after it returns
+    gnome-extensions info "$1" | sed -n "s/^ *State: //p" >"$0/state"
     kill %1; wait
   ' "$tmp" "$uuid" "$probe" >"$tmp/shell.log" 2>&1 || true
 
